@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RageBater — I don't answer. I react.</title>
+
+  <!--
+    ============================================================
+    RAGEBATER — SEMANTIC HTML SCAFFOLD
+    ============================================================
+    This file contains ONLY the HTML structure.
+    CSS lives in: ragebater.css   (to be created)
+    JS lives in:  ragebater.js    (to be created)
+    Backend:      Flask API       (to be connected later)
+    ============================================================
+  -->
+
+  <!-- External CSS will go here -->
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+
+<body>
+
+  <!-- ============================================================
+       ROOT APP WRAPPER
+       The single top-level container that holds everything.
+       JS: used to apply global state classes like:
+           - data-chaos="high"    → changes visual intensity
+           - data-mode="speaking" → triggers speaking animations
+  ============================================================ -->
+  <div id="app" class="app-root" data-chaos="medium" data-mode="idle">
+
+
+    <!-- ============================================================
+         HEADER / TOP BAR
+         Three-column layout: logo | chaos meter | score + settings
+    ============================================================ -->
+    <header id="top-bar" class="top-bar">
+
+
+      <!-- ── TOP-LEFT: Brand ── -->
+      <div id="brand" class="brand">
+
+        <!-- Logo text. JS may animate this or swap it for an SVG later. -->
+        <h1 class="brand-name">
+          RageBater
+          <!-- ⚡ is a decorative icon placeholder. Replace with SVG later. -->
+          <span class="brand-icon" aria-hidden="true">⚡</span>
+        </h1>
+
+        <!-- Tagline. Static. No JS needed. -->
+        <p class="brand-tagline">I don't answer. I react.</p>
+
+      </div>
+
+
+      <!-- ── TOP-CENTER: Chaos Level Meter ── -->
+      <div id="chaos-meter" class="chaos-meter" aria-label="Chaos Level">
+
+        <div class="chaos-meter__label">
+          <!-- ⚡ icon placeholder. Replace with SVG or img later. -->
+          <span class="chaos-icon" aria-hidden="true">⚡</span>
+          CHAOS LEVEL
+        </div>
+
+        <!--
+          The chaos bar is a visual progress indicator.
+          JS will update:
+            - #chaos-fill  → style.width (e.g., "78%")
+            - #chaos-value → innerText   (e.g., "78%")
+        -->
+        <div id="chaos-bar" class="chaos-meter__bar" role="progressbar"
+             aria-valuenow="78" aria-valuemin="0" aria-valuemax="100">
+          <div id="chaos-fill" class="chaos-meter__fill" style="width: 78%;"></div>
+        </div>
+
+        <span id="chaos-value" class="chaos-meter__value">78%</span>
+
+      </div>
+
+
+      <!-- ── TOP-RIGHT: Argument Score + Settings ── -->
+      <div class="top-right">
+
+        <!--
+          ARGUMENT SCORE CARD
+          JS will update:
+            - #score-user      → player's current score
+            - #score-ragebater → RageBater's current score
+        -->
+        <div id="argument-score" class="argument-score" aria-label="Argument Score">
+
+          <div class="argument-score__label">ARGUMENT SCORE</div>
+
+          <div class="argument-score__board">
+
+            <div class="argument-score__player" id="score-player-block">
+              <span class="argument-score__name">You</span>
+              <span id="score-user" class="argument-score__number argument-score__number--user">45</span>
+            </div>
+
+            <div class="argument-score__vs">
+              <span>VS</span>
+            </div>
+
+            <div class="argument-score__player" id="score-ragebater-block">
+              <span class="argument-score__name">RageBater</span>
+              <span id="score-ragebater" class="argument-score__number argument-score__number--ragebater">85</span>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!--
+          SETTINGS BUTTON
+          JS: attach click listener to open a settings panel/modal.
+          Placeholder icon: ⚙ (Unicode gear). Replace with SVG later.
+        -->
+        <button id="settings-btn" class="settings-btn" aria-label="Open Settings">
+          <!-- PLACEHOLDER: replace ⚙ with an SVG icon -->
+          <span aria-hidden="true">⚙</span>
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- ============================================================
+         MAIN CONTENT AREA
+         Three-column layout:
+           Left  → conversation history
+           Center → character stage
+           Right  → meme sticker panel
+    ============================================================ -->
+    <main id="main-content" class="main-content">
+
+
+      <!-- ══════════════════════════════════════════════════
+           LEFT COLUMN: Conversation History
+           Scrollable feed of user + RageBater messages.
+      ══════════════════════════════════════════════════ -->
+      <aside id="conversation-panel" class="conversation-panel" aria-label="Conversation History">
+
+        <!--
+          CONVERSATION FEED
+          JS will:
+            - Append new .message elements here as messages arrive
+            - Scroll this container to the bottom on new messages
+          Use: document.getElementById("conversation-feed")
+        -->
+        <ul id="conversation-feed" class="conversation-feed" role="log" aria-live="polite" aria-label="Chat messages">
+
+
+          <!-- ── USER MESSAGE (example) ── -->
+          <!--
+            Template class: .message--user
+            JS will clone this structure to insert new user messages.
+          -->
+          <li class="message message--user">
+            <div class="message__meta">
+              <span class="message__sender">You</span>
+              <time class="message__time" datetime="10:30">10:30 AM</time>
+            </div>
+            <div class="message__bubble">
+              <p class="message__text">I think pineapple belongs on pizza.</p>
+            </div>
+            <!-- Sticker slot: hidden by default. JS adds a sticker img here when triggered. -->
+            <div class="message__sticker-slot" aria-hidden="true"></div>
+          </li>
+
+
+          <!-- ── RAGEBATER MESSAGE (example) ── -->
+          <!--
+            Template class: .message--ragebater
+            This message type should visually stand out (different color, avatar, etc.)
+            JS will clone this structure for RageBater replies.
+          -->
+          <li class="message message--ragebater">
+            <div class="message__meta">
+              <span class="message__sender message__sender--ragebater">RageBater</span>
+              <time class="message__time" datetime="10:30">10:30 AM</time>
+            </div>
+            <div class="message__bubble message__bubble--ragebater">
+              <p class="message__text">That's not an opinion. That's a federal offense.</p>
+              <!-- Audio playback button. JS attaches the audio src and play logic. -->
+              <button class="message__audio-btn" aria-label="Play audio response">
+                <!-- PLACEHOLDER: replace with speaker SVG icon -->
+                <span aria-hidden="true">🔊</span>
+              </button>
+            </div>
+            <!--
+              STICKER ATTACHED TO MESSAGE
+              JS will populate .message__sticker-slot with an <img> tag
+              when RageBater sends a sticker with a message.
+            -->
+            <div class="message__sticker-slot" aria-hidden="true">
+              <!-- PLACEHOLDER: a sticker image will be injected here by JS -->
+              <img class="message__sticker-img" src="" alt="" aria-hidden="true" hidden />
+            </div>
+          </li>
+
+
+          <!-- ── USER MESSAGE 2 ── -->
+          <li class="message message--user">
+            <div class="message__meta">
+              <span class="message__sender">You</span>
+              <time class="message__time" datetime="10:31">10:31 AM</time>
+            </div>
+            <div class="message__bubble">
+              <p class="message__text">You don't know anything.</p>
+            </div>
+            <div class="message__sticker-slot" aria-hidden="true"></div>
+          </li>
+
+
+          <!-- ── RAGEBATER MESSAGE 2 ── -->
+          <li class="message message--ragebater">
+            <div class="message__meta">
+              <span class="message__sender message__sender--ragebater">RageBater</span>
+              <time class="message__time" datetime="10:31">10:31 AM</time>
+            </div>
+            <div class="message__bubble message__bubble--ragebater">
+              <p class="message__text">Yet here you are... talking to me.</p>
+              <button class="message__audio-btn" aria-label="Play audio response">
+                <span aria-hidden="true">🔊</span>
+              </button>
+            </div>
+            <div class="message__sticker-slot" aria-hidden="true">
+              <img class="message__sticker-img" src="" alt="Really? sticker" aria-hidden="true" hidden />
+            </div>
+          </li>
+
+
+          <!-- ── USER MESSAGE 3 ── -->
+          <li class="message message--user">
+            <div class="message__meta">
+              <span class="message__sender">You</span>
+              <time class="message__time" datetime="10:32">10:32 AM</time>
+            </div>
+            <div class="message__bubble">
+              <p class="message__text">Prove you're smarter than me.</p>
+            </div>
+            <div class="message__sticker-slot" aria-hidden="true"></div>
+          </li>
+
+
+          <!-- ── RAGEBATER MESSAGE 3 ── -->
+          <li class="message message--ragebater">
+            <div class="message__meta">
+              <span class="message__sender message__sender--ragebater">RageBater</span>
+              <time class="message__time" datetime="10:32">10:32 AM</time>
+            </div>
+            <div class="message__bubble message__bubble--ragebater">
+              <p class="message__text">I don't need to. You're doing a great job proving it for me.</p>
+              <button class="message__audio-btn" aria-label="Play audio response">
+                <span aria-hidden="true">🔊</span>
+              </button>
+            </div>
+            <div class="message__sticker-slot" aria-hidden="true">
+              <img class="message__sticker-img" src="" alt="Patrick sticker" aria-hidden="true" hidden />
+            </div>
+          </li>
+
+
+          <!--
+            TYPING INDICATOR
+            JS will toggle visibility of this element while RageBater is thinking.
+            Use: document.getElementById("typing-indicator")
+            Show:  typingIndicator.hidden = false
+            Hide:  typingIndicator.hidden = true
+          -->
+          <li id="typing-indicator" class="message message--ragebater message--typing" hidden aria-live="polite" aria-label="RageBater is typing">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </li>
+
+        </ul>
+        <!-- /conversation-feed -->
+
+      </aside>
+      <!-- /conversation-panel -->
+
+
+      <!-- ══════════════════════════════════════════════════
+           CENTER COLUMN: Character Stage
+           The main visual area showing the RageBater character.
+      ══════════════════════════════════════════════════ -->
+      <section id="character-stage" class="character-stage" aria-label="RageBater Character Stage">
+
+        <!--
+          SPEECH BUBBLE
+          Appears above the character's head.
+          JS will:
+            - Set  #speech-bubble-text innerText to the current response
+            - Toggle .speech-bubble--visible to show/hide it
+            - Toggle .speech-bubble--hidden to clear it after delay
+        -->
+        <div id="speech-bubble" class="speech-bubble speech-bubble--hidden" role="status" aria-live="polite">
+          <p id="speech-bubble-text" class="speech-bubble__text">
+            Oh really?<br />
+            And who told you that...<br />
+            Dr. Google? 😏
+          </p>
+        </div>
+
+
+        <!--
+          CHARACTER WRAPPER
+          All character sub-parts live inside here.
+          JS adds animation classes to #character-wrapper based on emotional state:
+            .character--idle
+            .character--speaking
+            .character--reacting
+            .character--laughing
+            .character--shrug
+        -->
+        <div id="character-wrapper" class="character-wrapper character--idle">
+
+          <!--
+            CHARACTER FACE
+            PLACEHOLDER: Currently shows a large emoji.
+            Later: replace contents with an animated SVG face or canvas element.
+            JS will add state classes to change expressions:
+              .face--neutral .face--smirk .face--rage .face--laugh .face--shocked
+          -->
+          <div id="character-face" class="character-face face--neutral" aria-hidden="true">
+            <!-- PLACEHOLDER: replace with animated SVG face asset -->
+            <span class="character-face__placeholder" role="img" aria-label="Character face placeholder">😏</span>
+          </div>
+
+          <!--
+            CHARACTER BODY
+            Contains left hand, right hand, and any body-level effects.
+          -->
+          <div id="character-body" class="character-body" aria-hidden="true">
+
+            <!--
+              LEFT HAND
+              PLACEHOLDER: text label until hand assets are available.
+              JS will add gesture classes:
+                .hand--shrug .hand--point .hand--facepalm .hand--clap
+            -->
+            <div id="character-hand-left" class="character-hand character-hand--left hand--idle" aria-hidden="true">
+              <!-- PLACEHOLDER: replace with hand SVG or sprite -->
+              <span class="character-hand__placeholder">[L-HAND]</span>
+            </div>
+
+            <!--
+              RIGHT HAND
+              PLACEHOLDER: text label until hand assets are available.
+            -->
+            <div id="character-hand-right" class="character-hand character-hand--right hand--idle" aria-hidden="true">
+              <!-- PLACEHOLDER: replace with hand SVG or sprite -->
+              <span class="character-hand__placeholder">[R-HAND]</span>
+            </div>
+
+          </div>
+          <!-- /character-body -->
+
+          <!--
+            FLOATING STICKERS ON CHARACTER
+            JS injects sticker <img> elements here during reactions.
+            Stickers float around the character and fade out.
+            Use: document.getElementById("character-sticker-zone")
+          -->
+          <div id="character-sticker-zone" class="character-sticker-zone" aria-hidden="true">
+            <!-- JS injects .floating-sticker <img> elements here dynamically -->
+          </div>
+
+          <!--
+            ANIMATION EFFECTS LAYER
+            Used for particle bursts, impact flashes, chaos rings.
+            JS injects short-lived .effect elements here.
+          -->
+          <div id="character-effects-layer" class="character-effects-layer" aria-hidden="true">
+            <!-- JS injects animated effect elements here -->
+          </div>
+
+        </div>
+        <!-- /character-wrapper -->
+
+
+        <!--
+          SPEAKING INDICATOR BAR
+          Shown when RageBater's voice is playing.
+          JS will:
+            - Toggle .speaking-bar--active to show/hide
+            - Animate the waveform bars (either CSS animation or JS canvas)
+          Use: document.getElementById("speaking-bar")
+        -->
+        <div id="speaking-bar" class="speaking-bar" aria-live="polite" aria-label="Voice playback indicator" hidden>
+
+          <!-- Left waveform. JS or CSS animates the bars. -->
+          <div class="speaking-bar__waveform speaking-bar__waveform--left" aria-hidden="true">
+            <span class="waveform-bar"></span>
+            <span class="waveform-bar"></span>
+            <span class="waveform-bar"></span>
+            <span class="waveform-bar"></span>
+            <span class="waveform-bar"></span>
+          </div>
+
+          <!-- Label in the center of the speaking bar -->
+          <span class="speaking-bar__label">RAGEBOT IS SPEAKING...</span>
+
+          <!-- Right waveform (mirrors the left). -->
+          <div class="speaking-bar__waveform speaking-bar__waveform--right" aria-hidden="true">
+            <span class="waveform-bar"></span>
+            <span class="waveform-bar"></span>
+            <span class="waveform-bar"></span>
+            <span class="waveform-bar"></span>
+            <span class="waveform-bar"></span>
+          </div>
+
+        </div>
+        <!-- /speaking-bar -->
+
+      </section>
+      <!-- /character-stage -->
+
+
+      <!-- ══════════════════════════════════════════════════
+           RIGHT COLUMN: Meme Sticker Panel
+      ══════════════════════════════════════════════════ -->
+      <aside id="sticker-panel" class="sticker-panel" aria-label="Meme Stickers Panel">
+
+        <!-- Panel Header -->
+        <div class="sticker-panel__header">
+          <!-- PLACEHOLDER: emoji icon, replace with asset later -->
+          <span aria-hidden="true">😂</span>
+          <h2 class="sticker-panel__title">MEME STICKERS</h2>
+        </div>
+
+        <!--
+          STICKER CATEGORY FILTER TABS
+          JS will:
+            - Add .sticker-tab--active to the clicked tab
+            - Filter the sticker grid to show only the matching category
+          Use: querySelectorAll(".sticker-tab")
+        -->
+        <nav class="sticker-tabs" aria-label="Sticker categories">
+          <button class="sticker-tab sticker-tab--active" data-category="all" aria-pressed="true">All</button>
+          <button class="sticker-tab" data-category="roasts" aria-pressed="false">Roasts</button>
+          <button class="sticker-tab" data-category="reactions" aria-pressed="false">Reactions</button>
+          <button class="sticker-tab" data-category="claps" aria-pressed="false">Claps</button>
+        </nav>
+
+        <!--
+          STICKER GRID
+          JS will:
+            - Populate this grid dynamically from a stickers data array
+            - Filter visible stickers when a category tab is clicked
+            - Send a sticker ID to Flask when a sticker is clicked
+          Use: document.getElementById("sticker-grid")
+          Each sticker item has data-sticker-id and data-category attributes.
+        -->
+        <div id="sticker-grid" class="sticker-grid" role="list" aria-label="Available stickers">
+
+          <!--
+            STICKER ITEM (example placeholders)
+            Structure that JS will clone when dynamically building the grid.
+            Replace <img> src with real sticker assets later.
+            Replace alt text with real sticker names.
+          -->
+
+          <!-- Sticker 1 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="bro-what" data-category="roasts" aria-label="Bro What sticker">
+            <!-- PLACEHOLDER IMAGE: replace src with real sticker asset -->
+            <img class="sticker-item__img" src="" alt="Bro What?" />
+            <span class="sticker-item__label">BRO WHAT?</span>
+          </button>
+
+          <!-- Sticker 2 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="nah-bro" data-category="roasts" aria-label="Nah Bro sticker">
+            <img class="sticker-item__img" src="" alt="Nah Bro" />
+            <span class="sticker-item__label">NAH BRO</span>
+          </button>
+
+          <!-- Sticker 3 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="aight-imma-head-out" data-category="reactions" aria-label="Aight Imma Head Out sticker">
+            <img class="sticker-item__img" src="" alt="Aight Imma Head Out" />
+            <span class="sticker-item__label">AIGHT IMMA HEAD OUT</span>
+          </button>
+
+          <!-- Sticker 4 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="really" data-category="reactions" aria-label="Really sticker">
+            <img class="sticker-item__img" src="" alt="Really?" />
+            <span class="sticker-item__label">REALLY?</span>
+          </button>
+
+          <!-- Sticker 5 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="patrick-question" data-category="reactions" aria-label="Patrick Question Mark sticker">
+            <img class="sticker-item__img" src="" alt="Patrick question marks" />
+            <span class="sticker-item__label">???</span>
+          </button>
+
+          <!-- Sticker 6 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="you-sure-about-that" data-category="roasts" aria-label="You Sure About That sticker">
+            <img class="sticker-item__img" src="" alt="You Sure About That?" />
+            <span class="sticker-item__label">YOU SURE ABOUT THAT?</span>
+          </button>
+
+          <!-- Sticker 7 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="sheesh" data-category="reactions" aria-label="Sheesh sticker">
+            <img class="sticker-item__img" src="" alt="Sheesh!" />
+            <span class="sticker-item__label">SHEESH!</span>
+          </button>
+
+          <!-- Sticker 8 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="the-audacity" data-category="roasts" aria-label="The Audacity sticker">
+            <img class="sticker-item__img" src="" alt="The Audacity!" />
+            <span class="sticker-item__label">THE AUDACITY!</span>
+          </button>
+
+          <!-- Sticker 9 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="it-is-what-it-is" data-category="claps" aria-label="It Is What It Is sticker">
+            <img class="sticker-item__img" src="" alt="It Is What It Is" />
+            <span class="sticker-item__label">IT IS WHAT IT IS</span>
+          </button>
+
+          <!-- Sticker 10 -->
+          <button class="sticker-item" role="listitem" data-sticker-id="i-cant-with-you" data-category="roasts" aria-label="I Can't With You sticker">
+            <img class="sticker-item__img" src="" alt="I Can't With You" />
+            <span class="sticker-item__label">I CAN'T WITH YOU</span>
+          </button>
+
+        </div>
+        <!-- /sticker-grid -->
+
+        <!--
+          ADD CUSTOM MEME BUTTON
+          JS: opens a modal or file upload flow for adding custom stickers.
+          Flask: will handle image upload + storage.
+        -->
+        <button id="add-custom-meme-btn" class="add-custom-meme-btn" aria-label="Add a custom meme sticker">
+          + Add Custom Meme
+        </button>
+
+      </aside>
+      <!-- /sticker-panel -->
+
+
+    </main>
+    <!-- /main-content -->
+
+
+    <!-- ============================================================
+         BOTTOM INTERACTION BAR
+         The primary input area: text, voice note, and mic button.
+    ============================================================ -->
+    <footer id="interaction-bar" class="interaction-bar">
+
+      <!--
+        TEXT INPUT SECTION
+        JS will:
+          - Listen for Enter key on #text-input to submit
+          - Clear #text-input after send
+          - Send value to Flask via fetch()
+        Use: document.getElementById("text-input")
+      -->
+      <div class="interaction-bar__text-section">
+
+        <!-- Label visually hidden but accessible to screen readers -->
+        <label for="text-input" class="sr-only">Type your message</label>
+
+        <div class="text-input-wrapper">
+          <!-- PLACEHOLDER: icon before the input -->
+          <span class="text-input-icon" aria-hidden="true">⌨</span>
+          <span class="text-input-label">TEXT</span>
+          <input
+            id="text-input"
+            class="text-input"
+            type="text"
+            placeholder="Type something to argue about..."
+            autocomplete="off"
+            aria-label="Type your message to RageBater"
+          />
+        </div>
+
+        <!--
+          SEND BUTTON (hidden by default; shown when text-input has value)
+          JS toggles visibility.
+          Use: document.getElementById("send-text-btn")
+        -->
+        <button id="send-text-btn" class="send-text-btn" aria-label="Send message" hidden>
+          Send
+        </button>
+
+      </div>
+
+
+      <!--
+        CENTRAL MICROPHONE BUTTON
+        The primary action button for voice input.
+        JS will:
+          - Add .mic-btn--recording when recording starts
+          - Remove .mic-btn--recording when recording stops
+          - Attach to the Web Speech API or send audio blob to Flask
+        Use: document.getElementById("mic-btn")
+      -->
+      <div class="interaction-bar__mic-section">
+        <button id="mic-btn" class="mic-btn" aria-label="Hold to speak" aria-pressed="false">
+          <!-- PLACEHOLDER: replace with a microphone SVG icon -->
+          <span class="mic-btn__icon" aria-hidden="true">🎤</span>
+        </button>
+      </div>
+
+
+      <!--
+        VOICE NOTE SECTION
+        Shows a waveform visualizer when recording voice input.
+        JS will:
+          - Show #voice-note-indicator when mic is active
+          - Animate .voice-note-bar elements to reflect audio amplitude
+          - Hide it after the recording is sent
+        Use: document.getElementById("voice-note-indicator")
+      -->
+      <div class="interaction-bar__voice-section">
+
+        <div id="voice-note-indicator" class="voice-note-indicator" aria-hidden="true" hidden>
+          <span class="voice-note-bar"></span>
+          <span class="voice-note-bar"></span>
+          <span class="voice-note-bar"></span>
+          <span class="voice-note-bar"></span>
+          <span class="voice-note-bar"></span>
+        </div>
+
+        <span class="voice-note-label" aria-hidden="true">VOICE NOTE</span>
+
+      </div>
+
+    </footer>
+    <!-- /interaction-bar -->
+
+
+    <!-- ============================================================
+         BOTTOM STATUS BAR
+         Version number and tip text. Always visible.
+    ============================================================ -->
+    <div id="status-bar" class="status-bar" aria-label="App status">
+
+      <span class="status-bar__version">RageBater v1.0.0</span>
+
+      <!--
+        TIP TEXT
+        JS can rotate this message after each RageBater response
+        to keep it fresh. Use: document.getElementById("tip-text")
+      -->
+      <p id="tip-text" class="status-bar__tip">
+        Tip: Ask, argue, challenge... I'll handle the rest.
+        <!-- PLACEHOLDER: emoji, swap with real image later -->
+        <span aria-hidden="true">😈</span>
+      </p>
+
+    </div>
+    <!-- /status-bar -->
+
+
+    <!-- ============================================================
+         SETTINGS MODAL (hidden by default)
+         JS toggles: modal.hidden = false / true
+         Use: document.getElementById("settings-modal")
+    ============================================================ -->
+    <dialog id="settings-modal" class="settings-modal" aria-modal="true" aria-labelledby="settings-modal-title" hidden>
+
+      <div class="settings-modal__content">
+
+        <div class="settings-modal__header">
+          <h2 id="settings-modal-title" class="settings-modal__title">Settings</h2>
+          <button id="settings-modal-close" class="settings-modal__close-btn" aria-label="Close settings">
+            <!-- PLACEHOLDER icon -->
+            <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+
+        <div class="settings-modal__body">
+          <!-- Placeholder settings content. Expand later. -->
+          <p class="settings-placeholder">Settings options will go here.</p>
+        </div>
+
+      </div>
+
+    </dialog>
+    <!-- /settings-modal -->
+
+
+  </div>
+  <!-- /app-root -->
+
+
+  <!-- External JS goes here, at the end of body so DOM is ready -->
+  <script src="./js/app.js"></script>
+
+</body>
+</html>
