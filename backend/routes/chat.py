@@ -2,24 +2,13 @@
 RageBater Chat API Routes
 =========================
 
-HTTP routes for the RageBater conversation system.
-
-The route layer is intentionally thin:
-    1. Validate HTTP input.
-    2. Pass the message to ResponsePipeline.
-    3. Return the pipeline result as JSON.
-    4. Provide a personality reset endpoint.
-
-The ResponsePipeline remains responsible for:
-    - input analysis
-    - personality state
-    - Rage Engine strategy selection
-    - intensity calculation
+Https routes for the ragebatter conversation system
 """
 
 from flask import Blueprint, jsonify, request
 
 from backend.services.response_pipeline import ResponsePipeline
+from backend.services.response_adapter import build_character_response
 
 
 # ============================================================
@@ -34,8 +23,9 @@ chat_bp = Blueprint("chat", __name__)
 # ============================================================
 
 # Keep one pipeline instance alive for the duration of the
-# Flask application so personality state can persist between
+# Flask application so personality state persists between
 # requests.
+
 response_pipeline = ResponsePipeline()
 
 
@@ -49,11 +39,13 @@ def chat():
     Process a user chat message.
 
     Request:
+
         {
             "message": "hello"
         }
 
     Response:
+
         {
             "success": true,
             "data": {
@@ -62,7 +54,14 @@ def chat():
                 "reason": "...",
                 "base_intensity": 0.53,
                 "personality": {...},
-                "intensity": 0.60
+                "intensity": 0.60,
+                "response": "...",
+                "face": "...",
+                "gesture": "...",
+                "animation": "...",
+                "sticker": "...",
+                "delay_ms": 600,
+                "chaos_level": 60
             }
         }
     """
@@ -72,16 +71,20 @@ def chat():
     # --------------------------------------------------------
 
     if not request.is_json:
-        return jsonify({
-            "error": "Request body must contain JSON"
-        }), 400
+        return jsonify(
+            {
+                "error": "Request body must contain JSON"
+            }
+        ), 400
 
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
-        return jsonify({
-            "error": "Request body must contain JSON"
-        }), 400
+        return jsonify(
+            {
+                "error": "Request body must contain JSON"
+            }
+        ), 400
 
     # --------------------------------------------------------
     # Validate message
@@ -90,36 +93,54 @@ def chat():
     message = data.get("message")
 
     if message is None:
-        return jsonify({
-            "error": "Message is required"
-        }), 400
+        return jsonify(
+            {
+                "error": "Message is required"
+            }
+        ), 400
 
     if not isinstance(message, str):
-        return jsonify({
-            "error": "Message must be a string"
-        }), 400
+        return jsonify(
+            {
+                "error": "Message must be a string"
+            }
+        ), 400
 
     message = message.strip()
 
     if not message:
-        return jsonify({
-            "error": "Message cannot be empty"
-        }), 400
+        return jsonify(
+            {
+                "error": "Message cannot be empty"
+            }
+        ), 400
 
     # --------------------------------------------------------
     # Run RageBater pipeline
     # --------------------------------------------------------
 
-    pipeline_result = response_pipeline.process(message)
+    pipeline_result = response_pipeline.process(
+        message
+    )
 
     # --------------------------------------------------------
-    # Return pipeline result
+    # Convert decision into character command
     # --------------------------------------------------------
 
-    return jsonify({
-        "success": True,
-        "data": pipeline_result
-    }), 200
+    character_response = build_character_response(
+        pipeline_result
+    )
+
+    # --------------------------------------------------------
+    # Return result
+    # --------------------------------------------------------
+
+    return jsonify(
+        {
+            "success": True,
+            "data": character_response,
+        }
+    ), 200
 
 
 # ============================================================
@@ -129,16 +150,23 @@ def chat():
 @chat_bp.route("/chat/debug", methods=["GET"])
 def chat_debug():
     """
-    Debug endpoint used to verify that the chat pipeline is
-    working without requiring a request body.
+    Debug endpoint used to verify the complete chat pipeline.
     """
 
-    pipeline_result = response_pipeline.process("hello")
+    pipeline_result = response_pipeline.process(
+        "hello"
+    )
 
-    return jsonify({
-        "success": True,
-        "data": pipeline_result
-    }), 200
+    character_response = build_character_response(
+        pipeline_result
+    )
+
+    return jsonify(
+        {
+            "success": True,
+            "data": character_response,
+        }
+    ), 200
 
 
 # ============================================================
@@ -149,23 +177,15 @@ def chat_debug():
 def reset_personality():
     """
     Reset the RageBater personality state.
-
-    This endpoint intentionally resets only the current
-    ResponsePipeline instance. It does not affect any
-    permanent storage because long-term memory is not yet
-    implemented.
     """
 
-    # ResponsePipeline currently does not expose a reset()
-    # method, so recreate the pipeline instance.
-    #
-    # Because this route runs against the module-level
-    # pipeline, the global reference must be replaced.
     global response_pipeline
 
     response_pipeline = ResponsePipeline()
 
-    return jsonify({
-        "success": True,
-        "message": "Personality reset successfully"
-    }), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "Personality reset successfully",
+        }
+    ), 200

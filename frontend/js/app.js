@@ -414,146 +414,80 @@ function updateScores(userScore, ragebaterScore) {
  * Execute a full RageBater response sequence from a structured response object.
  * @param {Object} response - The response object from the AI.
  */
+/**
+ * Execute a full RageBater response sequence from a structured
+ * response received from the real backend.
+ *
+ * Expected backend response:
+ *
+ * {
+ *   response: "...",
+ *   face: "...",
+ *   gesture: "...",
+ *   animation: "...",
+ *   sticker: "...",
+ *   delay_ms: 700,
+ *   chaos_level: 60
+ * }
+ *
+ * @param {Object} response - Backend character response.
+ */
 function renderRageResponse(response) {
-  // Prevent overlapping responses
-  
+  if (!response || typeof response !== "object") {
+    console.error("Invalid RageBater response:", response);
+    return;
+  }
 
-  // 1. Show typing indicator
+  const responseText =
+    typeof response.response === "string" && response.response.trim()
+      ? response.response.trim()
+      : "Interesting. Try making a stronger argument.";
+
+  const delayMs = Number.isFinite(Number(response.delay_ms))
+    ? Math.max(0, Number(response.delay_ms))
+    : 700;
+
+  // Show RageBater thinking while the response delay runs.
   showTyping();
 
-  // 2. Wait for the specified delay
   setTimeout(() => {
-    // 3. Hide typing indicator
     hideTyping();
 
-    // 4. Set face
+    // Character expression.
     setFace(response.face || "neutral");
 
-    // 5. Set gesture
+    // Character gesture.
     setGesture(response.gesture || "idle");
 
-    // 6. Play character animation
+    // Character animation.
     playCharacterAnimation(response.animation || "none");
 
-    // 7. Show speech bubble
-    showSpeech(response.response);
+    // Speech bubble.
+    showSpeech(responseText);
 
-    // 8. Add RageBater message to chat
-    addMessage("ragebater", response.response);
+    // Conversation feed.
+    addMessage("ragebater", responseText);
 
-    // 9. Show sticker if provided
+    // Sticker.
     if (response.sticker) {
       showSticker(response.sticker);
     }
 
-    // 10. Update chaos level
+    // Chaos meter.
     if (response.chaos_level !== undefined) {
       updateChaos(response.chaos_level);
     }
 
-    // 11. Update tips
+    // Dynamic tip.
     updateTip();
 
-    // 12. Unlock processing
+    // Response finished.
     state.isProcessing = false;
-  }, response.delay_ms || 700);
+  }, delayMs);
 }
 
 // ============================================================
-// 11. MOCK AI
-// ============================================================
-
-/**
- * Generate a mock RageBater response based on the user's message.
- * This will be replaced by a real API call later.
- * @param {string} userMessage - The user's input text.
- * @returns {Object} A structured response object.
- */
-function generateMockResponse(userMessage) {
-  const msg = userMessage.toLowerCase();
-
-  // Default response
-  let response = {
-    response: "Interesting take. But have you considered that you might be wrong? Just a thought.",
-    face: "smirk",
-    gesture: "shrug",
-    sticker: "really",
-    animation: "none",
-    delay_ms: 700,
-    chaos_level: state.chaosLevel + 2,
-  };
-
-  // Keyword-based responses (playful and sarcastic, not harmful)
-  if (msg.includes("don't laugh")) {
-    response = {
-      response: "I wasn't laughing. You imagined that. 😏",
-      face: "laugh",
-      gesture: "clap",
-      sticker: "bro_what",
-      animation: "bounce",
-      delay_ms: 900,
-      chaos_level: 82,
-    };
-  } else if (msg.includes("python")) {
-    response = {
-      response: "Python? Please. I code circles around it. In my sleep. With both hands tied.",
-      face: "smirk",
-      gesture: "point",
-      sticker: "you_sure",
-      animation: "float",
-      delay_ms: 800,
-      chaos_level: 75,
-    };
-  } else if (msg.includes("hello") || msg.includes("hi")) {
-    response = {
-      response: "Oh, hello. Prepared to lose this argument? I hope so.",
-      face: "evil",
-      gesture: "facepalm",
-      sticker: "nah_bro",
-      animation: "pulse",
-      delay_ms: 600,
-      chaos_level: 70,
-    };
-  } else if (msg.includes("sorry")) {
-    response = {
-      response: "Sorry? You'll be sorry when I'm done with this debate.",
-      face: "deadpan",
-      gesture: "stop",
-      sticker: "i_cant_with_you",
-      animation: "shake",
-      delay_ms: 750,
-      chaos_level: 88,
-    };
-  } else if (msg.includes("who") || msg.includes("what")) {
-    response = {
-      response: "Who? What? You're asking the wrong questions. Try again.",
-      face: "confused",
-      gesture: "shrug",
-      sticker: "really",
-      animation: "none",
-      delay_ms: 650,
-      chaos_level: 60,
-    };
-  } else if (msg.includes("prove")) {
-    response = {
-      response: "I don't need to prove anything. But since you asked... you're wrong.",
-      face: "annoyed",
-      gesture: "clap",
-      sticker: "you_sure",
-      animation: "bounce",
-      delay_ms: 800,
-      chaos_level: 85,
-    };
-  }
-
-  // Ensure chaos_level stays within bounds
-  response.chaos_level = Math.max(0, Math.min(100, response.chaos_level || state.chaosLevel));
-
-  return response;
-}
-
-// ============================================================
-// 12. TEXT INPUT
+// 11. TEXT INPUT
 // ============================================================
 
 /** Handle the user submitting a text message. */
@@ -561,18 +495,19 @@ async function handleTextSubmit() {
   if (state.isProcessing) return;
 
   const text = dom.textInput.value.trim();
+
   if (!text) return;
 
   state.isProcessing = true;
 
-  // Clear input and hide send button
+  // Clear input and hide send button.
   dom.textInput.value = "";
   dom.sendBtn.hidden = true;
 
-  // Show the user's message immediately
+  // Immediately show the user's message.
   addMessage("user", text);
 
-  // Show RageBater thinking
+  // RageBater is now processing the message.
   showTyping();
 
   try {
@@ -586,24 +521,31 @@ async function handleTextSubmit() {
       }),
     });
 
-    const payload = await response.json();
+    let payload;
+
+    try {
+      payload = await response.json();
+    } catch (jsonError) {
+      throw new Error(
+        `Backend returned invalid JSON (HTTP ${response.status}).`
+      );
+    }
 
     if (!response.ok) {
       throw new Error(
-        payload.error || "RageBater API request failed."
+        payload.error || `RageBater API request failed (${response.status}).`
       );
     }
 
     if (!payload.success || !payload.data) {
-      throw new Error("Invalid response received from RageBater API.");
+      throw new Error(
+        "RageBater API returned an invalid response structure."
+      );
     }
 
-    hideTyping();
-
-    // The backend response is wrapped as:
-    // { success: true, data: {...} }
     const responseData = payload.data;
 
+    // The backend now provides the complete character command.
     renderRageResponse(responseData);
 
   } catch (error) {
@@ -611,25 +553,22 @@ async function handleTextSubmit() {
 
     hideTyping();
 
-    addMessage(
-      "ragebater",
-      "My brain temporarily disconnected. Try that again."
-    );
+    const fallbackMessage =
+      "My brain temporarily disconnected. Try that again.";
 
-    showSpeech(
-      "My brain temporarily disconnected. Try that again."
-    );
+    addMessage("ragebater", fallbackMessage);
+    showSpeech(fallbackMessage);
 
     setFace("confused");
     setGesture("idle");
+    playCharacterAnimation("none");
 
-  } finally {
     state.isProcessing = false;
   }
 }
 
 // ============================================================
-// 13. MICROPHONE
+// 12. MICROPHONE
 // ============================================================
 
 /** Toggle the microphone recording UI (simulated). */
@@ -643,27 +582,10 @@ function toggleMicrophone() {
 
 function startRecording() {
   state.isRecording = true;
+
   dom.micBtn.classList.add("mic-btn--recording");
   dom.micBtn.setAttribute("aria-pressed", "true");
   dom.voiceIndicator.hidden = false;
-
-  // Simulate recording for 2 seconds
-  setTimeout(() => {
-    if (state.isRecording) {
-      stopRecording();
-      // Add a test response
-      const response = {
-        response: "Okay, voice input is coming next. But for now, just text. Deal with it.",
-        face: "smirk",
-        gesture: "idle",
-        sticker: "really",
-        animation: "none",
-        delay_ms: 600,
-        chaos_level: state.chaosLevel + 1,
-      };
-      renderRageResponse(response);
-    }
-  }, 2000);
 }
 
 function stopRecording() {
@@ -674,7 +596,7 @@ function stopRecording() {
 }
 
 // ============================================================
-// 14. SETTINGS
+// 13. SETTINGS
 // ============================================================
 
 /** Open the settings modal. */
@@ -690,7 +612,7 @@ function closeSettings() {
 }
 
 // ============================================================
-// 15. MEME FILTERS
+// 14. MEME FILTERS
 // ============================================================
 
 /** Filter the sticker grid by category. */
@@ -727,7 +649,7 @@ function handleCategoryClick(event) {
 }
 
 // ============================================================
-// 16. TIPS
+// 15. TIPS
 // ============================================================
 
 const TIPS = [
@@ -755,7 +677,7 @@ function updateTip() {
 }
 
 // ============================================================
-// 17. INITIALIZATION
+// 16. INITIALIZATION
 // ============================================================
 
 function init() {
