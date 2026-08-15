@@ -1,177 +1,103 @@
 """
-RageBater Chat API Route
+RageBater Chat API Routes
+=========================
 
-This module handles incoming chat messages and returns
-a structured response that the frontend can use to
-control the RageBater character.
+HTTP routes for the RageBater conversation system.
 
-Current version:
-- No Gemini/OpenAI
-- No database
-- No Rage Engine
-- Uses simple mock responses
-- Designed for easy debugging
+The route layer is intentionally thin:
+    1. Validate HTTP input.
+    2. Pass the message to ResponsePipeline.
+    3. Return the pipeline result as JSON.
+    4. Provide a personality reset endpoint.
+
+The ResponsePipeline remains responsible for:
+    - input analysis
+    - personality state
+    - Rage Engine strategy selection
+    - intensity calculation
 """
 
 from flask import Blueprint, jsonify, request
 
+from backend.services.response_pipeline import ResponsePipeline
 
-# ---------------------------------------------------------
-# 1. Blueprint
-# ---------------------------------------------------------
+
+# ============================================================
+# BLUEPRINT
+# ============================================================
 
 chat_bp = Blueprint("chat", __name__)
 
 
-# ---------------------------------------------------------
-# 2. Mock Response Generator
-# ---------------------------------------------------------
+# ============================================================
+# PIPELINE
+# ============================================================
 
-def generate_mock_response(message):
-    """
-    Generate a temporary RageBater response.
-
-    This is only for testing the API.
-    Later this function will be replaced by the
-    Chat Service + Rage Engine + AI Service.
-    """
-
-    # Convert message to lowercase so our checks are
-    # case-insensitive.
-    text = message.lower().strip()
-
-    # ---------------------------------------------
-    # Hello
-    # ---------------------------------------------
-
-    if "hello" in text or "hi" in text or "hey" in text:
-        return {
-            "response": "Oh look who decided to show up.",
-            "face": "smirk",
-            "gesture": "wave",
-            "sticker": "really",
-            "animation": "bounce",
-            "delay_ms": 700,
-            "chaos_level": 60,
-            "memory_used": False
-        }
-
-    # ---------------------------------------------
-    # Don't laugh
-    # ---------------------------------------------
-
-    if "don't laugh" in text or "do not laugh" in text:
-        return {
-            "response": "I wasn't laughing. You imagined that.",
-            "face": "laugh",
-            "gesture": "clap",
-            "sticker": "bro_what",
-            "animation": "bounce",
-            "delay_ms": 900,
-            "chaos_level": 82,
-            "memory_used": False
-        }
-
-    # ---------------------------------------------
-    # Python
-    # ---------------------------------------------
-
-    if "python" in text:
-        return {
-            "response": "Python? Okay, I see you came prepared.",
-            "face": "smirk",
-            "gesture": "shrug",
-            "sticker": "really",
-            "animation": "bounce",
-            "delay_ms": 800,
-            "chaos_level": 70,
-            "memory_used": False
-        }
-
-    # ---------------------------------------------
-    # JavaScript
-    # ---------------------------------------------
-
-    if "javascript" in text or "javascript" in text:
-        return {
-            "response": "JavaScript entered the chat. Things are about to get interesting.",
-            "face": "confused",
-            "gesture": "shrug",
-            "sticker": "bro_what",
-            "animation": "bounce",
-            "delay_ms": 800,
-            "chaos_level": 72,
-            "memory_used": False
-        }
-
-    # ---------------------------------------------
-    # Generic response
-    # ---------------------------------------------
-
-    return {
-        "response": "Interesting. Keep talking, I'm judging respectfully.",
-        "face": "smirk",
-        "gesture": "shrug",
-        "sticker": "really",
-        "animation": "bounce",
-        "delay_ms": 700,
-        "chaos_level": 65,
-        "memory_used": False
-    }
+# Keep one pipeline instance alive for the duration of the
+# Flask application so personality state can persist between
+# requests.
+response_pipeline = ResponsePipeline()
 
 
-# ---------------------------------------------------------
-# 3. Chat Endpoint
-# ---------------------------------------------------------
+# ============================================================
+# POST /api/chat
+# ============================================================
 
 @chat_bp.route("/chat", methods=["POST"])
 def chat():
     """
-    Receive a user message and return a RageBater response.
+    Process a user chat message.
 
-    Final API endpoint:
+    Request:
+        {
+            "message": "hello"
+        }
 
-        POST /api/chat
-
-    The /api prefix is added by app.py when the Blueprint
-    is registered.
+    Response:
+        {
+            "success": true,
+            "data": {
+                "analysis": {...},
+                "strategy": "...",
+                "reason": "...",
+                "base_intensity": 0.53,
+                "personality": {...},
+                "intensity": 0.60
+            }
+        }
     """
 
-    # ---------------------------------------------
-    # Get JSON body
-    # ---------------------------------------------
+    # --------------------------------------------------------
+    # Validate JSON
+    # --------------------------------------------------------
 
-    data = request.get_json(silent=True)
-
-    # No JSON body
-    if data is None:
+    if not request.is_json:
         return jsonify({
             "error": "Request body must contain JSON"
         }), 400
 
-    # ---------------------------------------------
-    # Check message
-    # ---------------------------------------------
+    data = request.get_json(silent=True)
 
-    if "message" not in data:
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "Request body must contain JSON"
+        }), 400
+
+    # --------------------------------------------------------
+    # Validate message
+    # --------------------------------------------------------
+
+    message = data.get("message")
+
+    if message is None:
         return jsonify({
             "error": "Message is required"
         }), 400
-
-    message = data["message"]
-
-    # ---------------------------------------------
-    # Validate message type
-    # ---------------------------------------------
 
     if not isinstance(message, str):
         return jsonify({
             "error": "Message must be a string"
         }), 400
-
-    # ---------------------------------------------
-    # Validate empty message
-    # ---------------------------------------------
 
     message = message.strip()
 
@@ -180,41 +106,66 @@ def chat():
             "error": "Message cannot be empty"
         }), 400
 
-    # ---------------------------------------------
-    # Generate response
-    # ---------------------------------------------
+    # --------------------------------------------------------
+    # Run RageBater pipeline
+    # --------------------------------------------------------
 
-    response_data = generate_mock_response(message)
+    pipeline_result = response_pipeline.process(message)
 
-    # ---------------------------------------------
-    # Return API response
-    # ---------------------------------------------
+    # --------------------------------------------------------
+    # Return pipeline result
+    # --------------------------------------------------------
 
     return jsonify({
         "success": True,
-        "data": response_data
+        "data": pipeline_result
     }), 200
 
 
-# ---------------------------------------------------------
-# 4. Simple Debug Information
-# ---------------------------------------------------------
+# ============================================================
+# GET /api/chat/debug
+# ============================================================
 
 @chat_bp.route("/chat/debug", methods=["GET"])
 def chat_debug():
     """
-    Simple debug endpoint.
-
-    Used only to confirm that the chat Blueprint
-    is correctly registered.
-
-    Expected URL:
-
-        GET /api/chat/debug
+    Debug endpoint used to verify that the chat pipeline is
+    working without requiring a request body.
     """
 
+    pipeline_result = response_pipeline.process("hello")
+
     return jsonify({
-        "status": "ok",
-        "message": "RageBater chat Blueprint is registered correctly",
-        "endpoint": "/api/chat"
+        "success": True,
+        "data": pipeline_result
+    }), 200
+
+
+# ============================================================
+# POST /api/chat/reset
+# ============================================================
+
+@chat_bp.route("/chat/reset", methods=["POST"])
+def reset_personality():
+    """
+    Reset the RageBater personality state.
+
+    This endpoint intentionally resets only the current
+    ResponsePipeline instance. It does not affect any
+    permanent storage because long-term memory is not yet
+    implemented.
+    """
+
+    # ResponsePipeline currently does not expose a reset()
+    # method, so recreate the pipeline instance.
+    #
+    # Because this route runs against the module-level
+    # pipeline, the global reference must be replaced.
+    global response_pipeline
+
+    response_pipeline = ResponsePipeline()
+
+    return jsonify({
+        "success": True,
+        "message": "Personality reset successfully"
     }), 200

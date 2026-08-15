@@ -1,123 +1,223 @@
 """
-This is the main entry point for the RageBater backend server.
+RageBater Flask API Entry Point
+================================
 
-It sets up the Flask application, enables CORS, registers the
-chat Blueprint, and provides the basic health and root endpoints.
+Main entry point for the RageBater backend.
 
-All core logic (AI services, Rage engine, and utilities) will live
-in separate modules under backend/ as the project grows.
+Project structure:
+
+    backend/
+    ├── app.py
+    ├── engine/
+    ├── routes/
+    ├── services/
+    └── utils/
+
+Run from the project root with:
+
+    python -m backend.app
+
+The application exposes:
+
+    GET  /
+    GET  /api/health
+    POST /api/chat
+    GET  /api/chat/debug
+
+The frontend communicates with:
+
+    /api/chat
 """
+
+from __future__ import annotations
+
+import os
+import sys
 
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-from routes.chat import chat_bp
+
+# ============================================================
+# 1. PACKAGE PATH COMPATIBILITY
+# ============================================================
+#
+# RageBater is now executed as:
+#
+#     python -m backend.app
+#
+# Therefore Python correctly recognizes "backend" as a package.
+#
+# Some of the existing engine/service files were written with
+# imports such as:
+#
+#     from engine.intensity_controller import ...
+#
+# instead of:
+#
+#     from backend.engine.intensity_controller import ...
+#
+# Adding the backend directory to sys.path here keeps those
+# existing modules working without changing the architecture
+# of the project in this step.
+#
+# This is intentionally done BEFORE importing chat_bp.
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 
-# ---------------------------------------------------------
-# 1. App Initialization
-# ---------------------------------------------------------
+# ============================================================
+# 2. IMPORT ROUTES
+# ============================================================
+#
+# IMPORTANT:
+# Use the package-qualified import because this application
+# is launched with:
+#
+#     python -m backend.app
+#
 
-# Create the Flask application instance.
+from backend.routes.chat import chat_bp
+
+
+# ============================================================
+# 3. FLASK APPLICATION
+# ============================================================
+
 app = Flask(__name__)
 
-# Enable Cross-Origin Resource Sharing (CORS).
-# This allows the frontend to communicate with the Flask API.
+
+# ============================================================
+# 4. CORS
+# ============================================================
+#
+# The frontend and backend may be served from different
+# origins during Codespaces/development.
+#
+# CORS allows the browser frontend to communicate with Flask.
+
 CORS(app)
 
 
-# ---------------------------------------------------------
-# 2. Register Blueprints
-# ---------------------------------------------------------
-
-# Register the chat Blueprint.
+# ============================================================
+# 5. REGISTER BLUEPRINTS
+# ============================================================
 #
-# The /api/chat route is defined inside routes/chat.py,
-# so we register the Blueprint here without adding another
-# URL prefix.
-app.register_blueprint(chat_bp, url_prefix="/api")
+# chat.py contains:
+#
+#     @chat_bp.route("/chat")
+#
+# Registering it with:
+#
+#     url_prefix="/api"
+#
+# produces:
+#
+#     POST /api/chat
+#     GET  /api/chat/debug
+#
+
+app.register_blueprint(
+    chat_bp,
+    url_prefix="/api",
+)
 
 
-# ---------------------------------------------------------
-# 3. Health Check Endpoint
-# ---------------------------------------------------------
-
-@app.route("/api/health", methods=["GET"])
-def health_check():
-    """
-    Simple health check endpoint for monitoring and
-    frontend connection testing.
-    """
-    return jsonify(
-        {
-            "status": "healthy",
-            "service": "RageBater API"
-        }
-    ), 200
-
-
-# ---------------------------------------------------------
-# 4. Root Endpoint
-# ---------------------------------------------------------
+# ============================================================
+# 6. ROOT ENDPOINT
+# ============================================================
 
 @app.route("/", methods=["GET"])
 def root():
     """
-    Root endpoint to verify that the server is running.
+    Basic endpoint used to verify that the RageBater
+    Flask server is running.
     """
+
     return jsonify(
         {
             "message": "RageBater API is running",
-            "status": "online"
+            "status": "online",
         }
     ), 200
 
 
-# ---------------------------------------------------------
-# 5. Error Handlers
-# ---------------------------------------------------------
+# ============================================================
+# 7. HEALTH CHECK
+# ============================================================
+
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """
+    Health endpoint for backend/frontend connection testing.
+    """
+
+    return jsonify(
+        {
+            "status": "healthy",
+            "service": "RageBater API",
+        }
+    ), 200
+
+
+# ============================================================
+# 8. 404 HANDLER
+# ============================================================
 
 @app.errorhandler(404)
 def not_found(error):
     """
-    Handle 404 errors.
-    Returns a JSON response instead of Flask's default HTML page.
+    Return JSON instead of Flask's default HTML 404 page.
     """
+
     return jsonify(
         {
-            "error": "Route not found"
+            "error": "Route not found",
         }
     ), 404
 
 
+# ============================================================
+# 9. 500 HANDLER
+# ============================================================
+
 @app.errorhandler(500)
 def internal_error(error):
     """
-    Handle 500 errors.
-    Returns a JSON response so the frontend can parse it.
+    Return JSON instead of Flask's default HTML 500 page.
     """
+
     return jsonify(
         {
-            "error": "Internal server error"
+            "error": "Internal server error",
         }
     ), 500
 
 
-# ---------------------------------------------------------
-# 6. Application Entry Point
-# ---------------------------------------------------------
+# ============================================================
+# 10. APPLICATION STARTUP
+# ============================================================
 
 if __name__ == "__main__":
-    # Run the Flask development server.
-    #
-    # host="0.0.0.0" makes the server accessible through
-    # the Codespace forwarded port.
-    #
-    # port=5000 is the RageBater backend port.
-    #
-    # debug=True enables automatic reloading during development.
+    """
+    Start the RageBater development server.
+
+    host=0.0.0.0
+        Required so the application is reachable through
+        GitHub Codespaces port forwarding.
+
+    port=5000
+        RageBater backend port.
+
+    debug=True
+        Enables Flask development debugging and reload.
+    """
+
     app.run(
         host="0.0.0.0",
         port=5000,
-        debug=True
+        debug=True,
     )

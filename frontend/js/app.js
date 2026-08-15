@@ -167,9 +167,6 @@ function playCharacterAnimation(animation) {
   }, 800);
 }
 
-// ============================================================
-// 5. SPEECH SYSTEM
-// ============================================================
 
 let speechTimeout = null;
 
@@ -419,8 +416,7 @@ function updateScores(userScore, ragebaterScore) {
  */
 function renderRageResponse(response) {
   // Prevent overlapping responses
-  if (state.isProcessing) return;
-  state.isProcessing = true;
+  
 
   // 1. Show typing indicator
   showTyping();
@@ -561,23 +557,75 @@ function generateMockResponse(userMessage) {
 // ============================================================
 
 /** Handle the user submitting a text message. */
-function handleTextSubmit() {
+async function handleTextSubmit() {
   if (state.isProcessing) return;
 
   const text = dom.textInput.value.trim();
   if (!text) return;
 
-  // Clear input
-  dom.textInput.value = "";
+  state.isProcessing = true;
 
-  // Add user message to chat
+  // Clear input and hide send button
+  dom.textInput.value = "";
+  dom.sendBtn.hidden = true;
+
+  // Show the user's message immediately
   addMessage("user", text);
 
-  // Generate mock response
-  const response = generateMockResponse(text);
+  // Show RageBater thinking
+  showTyping();
 
-  // Render the response
-  renderRageResponse(response);
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: text,
+      }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        payload.error || "RageBater API request failed."
+      );
+    }
+
+    if (!payload.success || !payload.data) {
+      throw new Error("Invalid response received from RageBater API.");
+    }
+
+    hideTyping();
+
+    // The backend response is wrapped as:
+    // { success: true, data: {...} }
+    const responseData = payload.data;
+
+    renderRageResponse(responseData);
+
+  } catch (error) {
+    console.error("RageBater API error:", error);
+
+    hideTyping();
+
+    addMessage(
+      "ragebater",
+      "My brain temporarily disconnected. Try that again."
+    );
+
+    showSpeech(
+      "My brain temporarily disconnected. Try that again."
+    );
+
+    setFace("confused");
+    setGesture("idle");
+
+  } finally {
+    state.isProcessing = false;
+  }
 }
 
 // ============================================================
