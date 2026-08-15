@@ -1,32 +1,25 @@
 """
-RageBater Flask API Entry Point
-================================
+RageBater Flask API + Frontend Entry Point
+===========================================
 
-Main entry point for the RageBater backend.
+Main entry point for the RageBater application.
 
-Project structure:
+The Flask application serves:
 
-    backend/
-    ├── app.py
-    ├── engine/
-    ├── routes/
-    ├── services/
-    └── utils/
+Frontend:
+    GET  /
+    GET  /css/<path>
+    GET  /js/<path>
+
+Backend API:
+    GET  /api/health
+    POST /api/chat
+    GET  /api/chat/debug
+    POST /api/chat/reset
 
 Run from the project root with:
 
     python -m backend.app
-
-The application exposes:
-
-    GET  /
-    GET  /api/health
-    POST /api/chat
-    GET  /api/chat/debug
-
-The frontend communicates with:
-
-    /api/chat
 """
 
 from __future__ import annotations
@@ -34,91 +27,89 @@ from __future__ import annotations
 import os
 import sys
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
 
 # ============================================================
-# 1. PACKAGE PATH COMPATIBILITY
+# 1. PATH CONFIGURATION
 # ============================================================
+
+# backend/app.py:
 #
-# RageBater is now executed as:
+#     project/
+#     ├── backend/
+#     │   └── app.py
+#     └── frontend/
+#         ├── index.html
+#         ├── css/
+#         └── js/
 #
-#     python -m backend.app
-#
-# Therefore Python correctly recognizes "backend" as a package.
-#
-# Some of the existing engine/service files were written with
-# imports such as:
+# Therefore the project root is one directory above backend/.
+
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BACKEND_DIR)
+FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
+
+
+# ============================================================
+# 2. PACKAGE PATH COMPATIBILITY
+# ============================================================
+
+# Some existing engine/service modules use imports such as:
 #
 #     from engine.intensity_controller import ...
 #
-# instead of:
+# rather than:
 #
 #     from backend.engine.intensity_controller import ...
 #
-# Adding the backend directory to sys.path here keeps those
-# existing modules working without changing the architecture
-# of the project in this step.
-#
-# This is intentionally done BEFORE importing chat_bp.
-
-BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+# Keep the existing architecture working without rewriting
+# those modules.
 
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
 
 # ============================================================
-# 2. IMPORT ROUTES
+# 3. IMPORT ROUTES
 # ============================================================
-#
-# IMPORTANT:
-# Use the package-qualified import because this application
-# is launched with:
-#
-#     python -m backend.app
-#
 
 from backend.routes.chat import chat_bp
 
 
 # ============================================================
-# 3. FLASK APPLICATION
+# 4. FLASK APPLICATION
 # ============================================================
 
 app = Flask(__name__)
 
 
 # ============================================================
-# 4. CORS
+# 5. CORS
 # ============================================================
-#
-# The frontend and backend may be served from different
-# origins during Codespaces/development.
-#
-# CORS allows the browser frontend to communicate with Flask.
+
+# Keep CORS enabled because the frontend may still be accessed
+# from a different origin during development.
 
 CORS(app)
 
 
 # ============================================================
-# 5. REGISTER BLUEPRINTS
+# 6. REGISTER API BLUEPRINTS
 # ============================================================
+
+# chat.py defines:
 #
-# chat.py contains:
+#     /chat
+#     /chat/debug
+#     /chat/reset
 #
-#     @chat_bp.route("/chat")
-#
-# Registering it with:
-#
-#     url_prefix="/api"
-#
-# produces:
+# Registering with /api produces:
 #
 #     POST /api/chat
 #     GET  /api/chat/debug
-#
+#     POST /api/chat/reset
 
 app.register_blueprint(
     chat_bp,
@@ -127,32 +118,74 @@ app.register_blueprint(
 
 
 # ============================================================
-# 6. ROOT ENDPOINT
+# 7. FRONTEND
 # ============================================================
 
 @app.route("/", methods=["GET"])
-def root():
+def serve_frontend():
     """
-    Basic endpoint used to verify that the RageBater
-    Flask server is running.
+    Serve the main RageBater frontend.
+
+    The frontend entry point is:
+
+        frontend/index.html
     """
+
+    return send_from_directory(
+        FRONTEND_DIR,
+        "index.html",
+    )
+
+
+@app.route("/<path:path>", methods=["GET"])
+def serve_frontend_assets(path: str):
+    """
+    Serve frontend static assets.
+
+    Examples:
+
+        /css/style.css
+        /js/app.js
+
+    API routes are registered separately under /api and therefore
+    continue to use the API blueprint.
+    """
+
+    requested_path = os.path.join(FRONTEND_DIR, path)
+
+    # Only serve files that actually exist.
+    if os.path.isfile(requested_path):
+        return send_from_directory(
+            FRONTEND_DIR,
+            path,
+        )
 
     return jsonify(
         {
-            "message": "RageBater API is running",
-            "status": "online",
+            "error": "Route not found",
         }
-    ), 200
+    ), 404
 
 
 # ============================================================
-# 7. HEALTH CHECK
+# 8. ROOT API INFORMATION
+# ============================================================
+
+# NOTE:
+# The root URL now serves the frontend.
+#
+# The API health endpoint remains the canonical backend
+# availability check.
+
+
+# ============================================================
+# 9. HEALTH CHECK
 # ============================================================
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
     """
-    Health endpoint for backend/frontend connection testing.
+    Health endpoint used to verify that the backend is running.
     """
 
     return jsonify(
@@ -164,13 +197,14 @@ def health_check():
 
 
 # ============================================================
-# 8. 404 HANDLER
+# 10. 404 HANDLER
 # ============================================================
 
 @app.errorhandler(404)
 def not_found(error):
     """
-    Return JSON instead of Flask's default HTML 404 page.
+    Return JSON for unknown routes instead of Flask's default
+    HTML 404 response.
     """
 
     return jsonify(
@@ -181,7 +215,7 @@ def not_found(error):
 
 
 # ============================================================
-# 9. 500 HANDLER
+# 11. 500 HANDLER
 # ============================================================
 
 @app.errorhandler(500)
@@ -198,7 +232,7 @@ def internal_error(error):
 
 
 # ============================================================
-# 10. APPLICATION STARTUP
+# 12. APPLICATION STARTUP
 # ============================================================
 
 if __name__ == "__main__":
@@ -206,11 +240,10 @@ if __name__ == "__main__":
     Start the RageBater development server.
 
     host=0.0.0.0
-        Required so the application is reachable through
-        GitHub Codespaces port forwarding.
+        Required for GitHub Codespaces port forwarding.
 
     port=5000
-        RageBater backend port.
+        RageBater development server port.
 
     debug=True
         Enables Flask development debugging and reload.
